@@ -271,10 +271,11 @@ class Sentry
 	 *
 	 * @param   int|string  user id or login value
 	 * @param   provider    what system was used to force the login
+	 * @param   bool        Whether to remember the user or not
 	 * @return  bool
 	 * @throws  SentryException
 	 */
-	public static function force_login($id, $provider = 'Sentry-Forced')
+	public static function force_login($id, $provider = 'Sentry-Forced', $remember = false)
 	{
 		// check to make sure user exists
 		if ( ! static::user_exists($id))
@@ -286,6 +287,25 @@ class Sentry
 		{
 			$id = (int) static::user($id)->get('id');
 		}
+
+		// set update array
+		$update = array();
+
+		// gets user
+		$user = Sentry::user($id);
+
+		// if they wish to be remembers, set the cookie and get the hash
+		if ($remember)
+		{
+			$login_column_value = $user->get(static::$login_column);
+			$update['remember_me'] = static::remember($login_column_value);
+		}
+
+		$update['last_login'] = static::sql_timestamp();
+		$update['ip_address'] = Request::ip();
+
+		// update user
+		$user->update($update, false);
 
 		Session::put(Config::get('sentry::sentry.session.user'), $id);
 		Session::put(Config::get('sentry::sentry.session.provider'), $provider);
